@@ -1,0 +1,114 @@
+openapi: 3.0.3
+info:
+  title: FAIRmodels API specification
+  description: |-
+    This is the API specification to execute an AI model. The actual API is embedded in the (Docker) container, which will execute the AI model itself.
+  contact:
+    email: j.vansoest@maastrichtuniversity.nl
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  version: 1.0.0
+externalDocs:
+  description: Find out more FAIRmodels
+  url: https://www.fairmodels.org
+paths:
+  /:
+    get:
+      summary: Get metadata information about the current model
+      description: Get metadata information about the current model
+      operationId: getModels
+      responses:
+        '200':
+          description: Succesful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models'
+  /predict:
+    post:
+      summary: Execute the prediction model for a given (set of) patients
+      description: Execute the prediction model for a given (set of) patients
+      operationId: executeModel
+      requestBody:
+        required: true
+        description: Information input needed for model execution
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModelInput'
+      responses:
+        '200':
+          description: Succesful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    description: Identifier describing the current status of the received prediction request. This is similar to exit codes of applications, where 0 means success and any other number means an error occurred.
+                  message:
+                    type: string
+                    description: Message describing the current status of the received prediction request. This is similar to the output of applications, where a message is shown to the user.
+  /status:
+    get:
+      summary: Get the status of the current model prediction execution
+      description: Get the status of the current model prediction execution
+      operationId: getStatus
+      responses:
+        '200':
+          description: Succesful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    description: |
+                     Identifier describing the current status of the prediction execution. In this case, the following numbers apply:
+                      - 0: No prediction requested
+                      - 1: Prediction requested
+                      - 2: Prediction in progress
+                      - 3: Prediction completed
+                      - 4: Prediction failed
+                  message:
+                    type: string
+                    description: Message describing the current status of the prediction execution.
+components:
+  schemas:
+    ModelInput:
+      type: array
+      items:
+        type: object
+        properties:
+          input_features:
+            type: object
+            properties:
+              "<variable_name_a>":
+                type: number
+              "<variable_name_b>":
+                type: number
+              "<variable_name_c>":
+                type: number
+          callback_url:
+            type: string
+            description: URL to which the prediction results will be pushed
+    Models:
+      type: object
+      properties:
+        model_uri:
+          type: string
+          description: The URL of the FAIRmodel metadata
+        model_name:
+          type: string
+          description: Name of the AI model
+        path:
+          type: string
+          description: Path on this base url to execute the AI model
+        path_parameters:
+          type: array
+          items:
+            type: string
+            description: Name of the input parameters for model execution
