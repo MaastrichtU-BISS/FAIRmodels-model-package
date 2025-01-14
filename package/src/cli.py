@@ -13,10 +13,10 @@ def build(prediction_python_file: str, class_name: str, image_name: str):
     Wrap a python prediction model execution file into a container
 
     Args:
-        prediction_python_file (str): The python file that contains the prediction model execution code.
+        - prediction_python_file (str): The python file that contains the prediction model execution code.
             This file should contain a class that inherits from FairModel.model_execution.ModelExecution
-        class_name (str): The name of the class that should inherit from FairModel.model_execution.ModelExecution
-        image_name (str): The name of the image that will be created
+        - class_name (str): The name of the class that should inherit from FairModel.model_execution.ModelExecution
+        - image_name (str): The name of the image that will be created
     """
 
     # Check if docker is running
