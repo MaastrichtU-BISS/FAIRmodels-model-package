@@ -60,9 +60,10 @@ def build_container(dockerfile, image_name, show_logs=False):
     with open('Dockerfile', 'w') as f:
         f.write(dockerfile)
     client = docker.from_env()
-    # f = BytesIO(dockerfile.encode())
-    # print(client.images.build(fileobj=f, rm=True, tag=image_name, path=os.path.abspath(os.path.curdir), custom_context=True))
+
+    # build image
     image, build_log = client.images.build(path=os.path.abspath(os.path.curdir), rm=True, tag=image_name, nocache=True)
+    
     # delete Dockerfile
     os.remove('Dockerfile')
     if show_logs:
@@ -72,25 +73,39 @@ def build_container(dockerfile, image_name, show_logs=False):
     return image
 
 @click.command()
-@click.argument('prediction_python_file')
+@click.argument('prediction_file')
 @click.option('--class_name', default=None, help='The name of the class used in the prediction_python_file')
 @click.argument('input_data')
-def predict(prediction_python_file: str, class_name: str, input_data: str):
+def predict(prediction_file: str, class_name: str, input_data: str):
     """
     Predict using a python prediction model execution file, without building the docker image.
 
     Args:
-        prediction_python_file (str): The python file that contains the prediction model execution code.
-            This file should contain a class that inherits from FairModel.model_execution.ModelExecution
+        prediction_file (str): The python file that contains the prediction model execution code.
+            This file should contain a class that inherits from FairModel.model_execution.ModelExecution OR a json file that contains the model parameters
         class_name (str): The name of the class that should inherit from FairModel.model_execution.ModelExecution
         input_data (str): The input data in json formatted string
 
     Returns:
         The prediction result
     """
-    module_name = prediction_python_file.replace('.py', '')
-    if class_name is None:
-        class_name = module_name
+    input_data = json.loads(input_data)
+    model = None
 
-    model = model_execution.load_model(module_name, class_name)
-    return model.predict(json.loads(input_data))
+    if prediction_file.endswith('.json'):
+        with open(prediction_file) as f:
+            model_parameters = json.load(f)
+            if model_parameters['model_type'] == 'logistic_regression':
+                model = model_execution.logistic_regression(model_parameters=model_parameters)
+    else:
+        module_name = prediction_file.replace('.py', '')
+        if class_name is None:
+            class_name = module_name
+
+        model = model_execution.load_model(module_name, class_name)
+    
+    if model is None:
+        print("Model not found")
+        return
+    
+    print(json.dumps(model.predict(input_data), indent=4))

@@ -96,7 +96,7 @@ class logistic_regression(model_execution):
         # Calculate the linear predictor
         linear_predictor = self._model_parameters['intercept']
         for covariate, weight in self._model_parameters['covariate_weights'].items():
-            print(float(input_object[covariate]))
+            # print(float(input_object[covariate]))
             linear_predictor += float(weight) * float(input_object[covariate])
         
         # Calculate the probability
