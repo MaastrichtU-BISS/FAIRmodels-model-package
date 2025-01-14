@@ -3,12 +3,12 @@ from typing import List, Union
 from fastapi import FastAPI
 
 app = FastAPI()
-status_list = []
-status_list[0] = "No prediction requested"
-status_list[1] = "Prediction requested"
-status_list[2] = "Prediction in progress"
-status_list[3] = "Prediction completed"
-status_list[4] = "Prediction failed"
+status_list = [ ]
+status_list.insert(0, "No prediction requested")
+status_list.insert(1, "Prediction requested")
+status_list.insert(2, "Prediction in progress")
+status_list.insert(3, "Prediction completed")
+status_list.insert(4, "Prediction failed")
 
 current_data = None
 current_status = 0
