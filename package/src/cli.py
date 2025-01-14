@@ -5,16 +5,16 @@ import docker
 import json
 
 @click.command()
-@click.argument('prediction_python_file')
+@click.argument('prediction_file')
 @click.argument('image_name')
 @click.option('--class_name', default=None, help='The name of the class used in the prediction_python_file')
-def build(prediction_python_file: str, class_name: str, image_name: str):
+def build(prediction_file: str, class_name: str, image_name: str):
     """
     Wrap a python prediction model execution file into a container
 
     Args:
-        - prediction_python_file (str): The python file that contains the prediction model execution code.
-            This file should contain a class that inherits from FairModel.model_execution.ModelExecution
+        - prediction_file (str): The python file that contains the prediction model execution code.
+            This file should contain a class that inherits from FairModel.model_execution.ModelExecution, OR a json file that contains the model parameters
         - class_name (str): The name of the class that should inherit from FairModel.model_execution.ModelExecution
         - image_name (str): The name of the image that will be created
     """
@@ -27,17 +27,31 @@ def build(prediction_python_file: str, class_name: str, image_name: str):
         print("Docker is not running. Please start Docker.")
         return
 
-    module_name = prediction_python_file.replace('.py', '')
-    if class_name is None:
-        class_name = module_name
+    if prediction_file.endswith('.json'):
+        with open(prediction_file) as f:
+            model_parameters = json.load(f)
+            module_name = "model_execution_default"
+            class_name = f"model_execution_{model_parameters['model_type']}"
 
-    dockerfile = f"""
-    FROM jvsoest/base_fairmodels
-    WORKDIR /app
-    COPY {prediction_python_file} /app/{prediction_python_file}
-    ENV MODULE_NAME={module_name}
-    ENV CLASS_NAME={class_name}
-    """
+            dockerfile = f"""
+            FROM jvsoest/base_fairmodels
+            WORKDIR /app
+            COPY {prediction_file} /app/model_parameters.json
+            ENV MODULE_NAME={module_name}
+            ENV CLASS_NAME={class_name}
+            """
+    else:
+        module_name = prediction_file.replace('.py', '')
+        if class_name is None:
+            class_name = module_name
+            
+            dockerfile = f"""
+            FROM jvsoest/base_fairmodels
+            WORKDIR /app
+            COPY {prediction_file} /app/{prediction_file}
+            ENV MODULE_NAME={module_name}
+            ENV CLASS_NAME={class_name}
+            """
 
     image = build_container(dockerfile, image_name)
 
