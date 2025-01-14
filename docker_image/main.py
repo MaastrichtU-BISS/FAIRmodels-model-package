@@ -3,7 +3,16 @@ from typing import List, Union
 from fastapi import FastAPI
 
 app = FastAPI()
+status_list = []
+status_list[0] = "No prediction requested"
+status_list[1] = "Prediction requested"
+status_list[2] = "Prediction in progress"
+status_list[3] = "Prediction completed"
+status_list[4] = "Prediction failed"
+
 current_data = None
+current_status = 0
+current_result = None
 
 def get_model():
     """
@@ -43,6 +52,12 @@ def predict(data: Union[dict, List[dict]]):
     - data: a dictionary (or list of dictionaries) containing the input data
     """
     current_data = data
+    status = 1
+    model_obj = get_model()
+    current_status = 2
+    current_result = model_obj.predict(data)
+    current_status = 3
+
 
 @app.get("/status")
 def getStatus():
@@ -53,7 +68,7 @@ def getStatus():
     - status: the status of the model
     - message: a message indicating the status
     """
-    return {"status": 0, "message": "No input received yet."}
+    return {"status": current_status, "message": status_list[current_status]}
 
 @app.get("/result")
 def getResult():
@@ -63,9 +78,8 @@ def getResult():
     Returns:
     - probability: the probability which the model calculates
     """
-    if getStatus()["status"] > 0:
-        model_obj = get_model()
-        return model_obj.predict(current_data)
+    if getStatus()["status"] == 3:
+        return current_result
     else:
         return [ ]
 
