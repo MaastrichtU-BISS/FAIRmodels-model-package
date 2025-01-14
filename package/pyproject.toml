@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "FairModel"
+version = "0.1.0"
+authors = [
+    { name = "Johan van Soest", email = "j.vansoest@maastrichtuniversity.nl" }
+]
+description = "A package to package AI models into an executionable container"
+readme = "A package to package AI models into an executionable container"
+license = { text = "Apache 2.0" }
+requires-python = ">=3.6"
+dependencies = [
+    "docker",
+    "click"
+]
+
+[project.urls]
+Repository = "https://github.com/MaastrichtU-BISS/FAIRmodels-model-package"
+
+[project.scripts]
+fm-build = "cli:build"
+fm-predict = "cli:predict"

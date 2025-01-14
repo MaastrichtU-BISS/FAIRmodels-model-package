@@ -1,4 +1,4 @@
-from FairModel import model_execution
+import model_execution
 import os
 import click
 import docker
@@ -18,6 +18,14 @@ def build(prediction_python_file: str, class_name: str, image_name: str):
         class_name (str): The name of the class that should inherit from FairModel.model_execution.ModelExecution
         image_name (str): The name of the image that will be created
     """
+
+    # Check if docker is running
+    client = docker.from_env()
+    try:
+        client.ping()
+    except Exception as e:
+        print("Docker is not running. Please start Docker.")
+        return
 
     module_name = prediction_python_file.replace('.py', '')
     if class_name is None:
