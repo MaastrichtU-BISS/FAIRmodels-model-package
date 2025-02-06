@@ -45,13 +45,13 @@ def build(prediction_file: str, class_name: str, image_name: str):
         if class_name is None:
             class_name = module_name
             
-            dockerfile = f"""
-            FROM jvsoest/base_fairmodels
-            WORKDIR /app
-            COPY {prediction_file} /app/{prediction_file}
-            ENV MODULE_NAME={module_name}
-            ENV CLASS_NAME={class_name}
-            """
+        dockerfile = f"""
+        FROM jvsoest/base_fairmodels
+        WORKDIR /app
+        COPY {prediction_file} /app/{prediction_file}
+        ENV MODULE_NAME={module_name}
+        ENV CLASS_NAME={class_name}
+        """
 
     image = build_container(dockerfile, image_name)
 

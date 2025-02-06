@@ -51,8 +51,10 @@ def predict(data: Union[dict, List[dict]]):
     Parameters:
     - data: a dictionary (or list of dictionaries) containing the input data
     """
+    global current_data, current_status, current_result
+
     current_data = data
-    status = 1
+    current_status = 1
     model_obj = get_model()
     current_status = 2
     current_result = model_obj.predict(data)
