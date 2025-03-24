@@ -34,7 +34,7 @@ def build(prediction_file: str, class_name: str, image_name: str):
             class_name = f"model_execution_{model_parameters['model_type']}"
 
             dockerfile = f"""
-            FROM jvsoest/base_fairmodels
+            FROM ghcr.io/maastrichtu-biss/fairmodels-model-package/base-image:latest
             WORKDIR /app
             COPY {prediction_file} /app/model_parameters.json
             ENV MODULE_NAME={module_name}
@@ -46,7 +46,7 @@ def build(prediction_file: str, class_name: str, image_name: str):
             class_name = module_name
             
         dockerfile = f"""
-        FROM jvsoest/base_fairmodels
+        FROM ghcr.io/maastrichtu-biss/fairmodels-model-package/base-image:latest
         WORKDIR /app
         COPY {prediction_file} /app/{prediction_file}
         ENV MODULE_NAME={module_name}
