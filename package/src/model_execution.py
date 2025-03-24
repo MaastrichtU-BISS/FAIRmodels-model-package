@@ -57,7 +57,15 @@ class model_execution:
         if isinstance(input_object, dict):
             return self._calculate_probability_single(input_object)
         elif isinstance(input_object, list):
-            return [self._calculate_probability_single(item) for item in input_object]
+            results = { }
+            # loop over numeric index of item list
+            for i in range(len(input_object)):
+                item = input_object[i]
+                if "id" in item:
+                    results[item["id"]] = self._calculate_probability_single(item)
+                else:
+                    results[str(i)] = self._calculate_probability_single(item)
+            return results
 
 class logistic_regression(model_execution):
     def __init__(self, model_parameters=None, model_path=None):

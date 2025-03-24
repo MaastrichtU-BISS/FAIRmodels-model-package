@@ -83,7 +83,7 @@ def getResult():
     if getStatus()["status"] == 3:
         return current_result
     else:
-        return [ ]
+        return { }
 
 if __name__ == "__main__":
     import uvicorn

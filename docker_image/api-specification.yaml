@@ -86,12 +86,18 @@ components:
           input_features:
             type: object
             properties:
+              "id":
+                type: string
+                description: Identifier of the patient / sample
               "<variable_name_a>":
                 type: number
+                description: Value of the input variable (replace <variable_name_a> with the actual variable name)
               "<variable_name_b>":
                 type: number
+                description: Value of the input variable (replace <variable_name_b> with the actual variable name)
               "<variable_name_c>":
                 type: number
+                description: Value of the input variable (replace <variable_name_c> with the actual variable name)
           callback_url:
             type: string
             description: URL to which the prediction results will be pushed
