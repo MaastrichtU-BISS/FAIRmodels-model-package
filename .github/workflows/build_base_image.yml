@@ -14,16 +14,28 @@ jobs:
 
       - name: Build base image
         run: docker build -t base-image ./docker_image
+      
+      - name: repo_name
+        id: repo_name
+        uses: ASzc/change-string-case-action@v6
+        with:
+          string: ${{ github.repository }}
+      
+      - name: branch_name
+        id: branch_name
+        uses: ASzc/change-string-case-action@v6
+        with:
+          string: ${{ github.ref_name }}
 
       - name: Push base image
         run: |
           echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-          docker tag base-image ghcr.io/${{ github.repository | toLower }}/base-image:${{ github.ref_name | toLower }}
-          docker push ghcr.io/${{ github.repository | toLower }}/base-image:${{ github.ref_name | toLower }}
+          docker tag base-image ghcr.io/${{ steps.repo_name.outputs.lowercase }}/base-image:${{ steps.branch_name.outputs.lowercase }}
+          docker push ghcr.io/${{ steps.repo_name.outputs.lowercase }}/base-image:${{ steps.branch_name.outputs.lowercase }}
       
       # if branch is main, also push as latest
       - name: Push base image as latest
         if: github.ref == 'refs/heads/main'
         run: |
-          docker tag base-image ghcr.io/${{ github.repository | toLower }}/base-image:latest
-          docker push ghcr.io/${{ github.repository | toLower }}/base-image:latest
+          docker tag base-image ghcr.io/${{ steps.repo_name.outputs.lowercase }}/base-image:latest
+          docker push ghcr.io/${{ steps.repo_name.outputs.lowercase }}/base-image:latest
