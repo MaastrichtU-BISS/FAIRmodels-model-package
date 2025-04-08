@@ -64,7 +64,7 @@ class model_execution:
                 if "id" in item:
                     results[item["id"]] = self._calculate_probability_single(item)
                 else:
-                    results[str(i)] = self._calculate_probability_single(item)
+                    results[f"prediction_{str(i)}"] = self._calculate_probability_single(item)
             return results
 
 class logistic_regression(model_execution):
