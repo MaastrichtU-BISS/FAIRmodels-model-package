@@ -1,9 +1,10 @@
 import os
+import logging
 from typing import List, Union
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 
 app = FastAPI()
-status_list = [ ]
+status_list = []
 status_list.insert(0, "No prediction requested")
 status_list.insert(1, "Prediction requested")
 status_list.insert(2, "Prediction in progress")
@@ -13,6 +14,9 @@ status_list.insert(4, "Prediction failed")
 current_data = None
 current_status = 0
 current_result = None
+
+logging.basicConfig(level=logging.INFO)
+
 
 def get_model():
     """
@@ -30,6 +34,7 @@ def get_model():
     instance = class_()
     return instance
 
+
 @app.get("/")
 def read_root():
     """
@@ -39,9 +44,10 @@ def read_root():
     return {
         "model_uri": model_metadata["model_uri"],
         "model_name": model_metadata["model_name"],
-        "path": "/predict",	
+        "path": "/predict",
         "path_parameters": get_model().get_input_parameters(),
     }
+
 
 @app.post("/predict")
 def predict(data: Union[dict, List[dict]]):
@@ -53,16 +59,29 @@ def predict(data: Union[dict, List[dict]]):
     """
     global current_data, current_status, current_result
 
+    current_data = data
+    current_status = 1
+
     try:
-        current_data = data
-        current_status = 1
         model_obj = get_model()
         current_status = 2
         current_result = model_obj.predict(data)
         current_status = 3
-    except Exception as e:
+        return current_result
+
+    except (ValueError, TypeError) as e:
+        # Validation errors -> client fault (400)
         current_status = 4
         current_result = {"error": str(e)}
+        logging.info("Validation error during prediction: %s", e)
+        raise HTTPException(status_code=400, detail=str(e))
+
+    except Exception as e:
+        # Unexpected errors -> server fault (500)
+        current_status = 4
+        current_result = {"error": str(e)}
+        logging.exception("Unexpected error during prediction")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.get("/status")
@@ -75,8 +94,10 @@ def getStatus():
     - message: a message indicating the status
     """
     if current_status == 4:
-        return {"status": current_status, "message": current_result.get("error", "")}
+        message = current_result.get("error", "") if isinstance(current_result, dict) else ""
+        return {"status": current_status, "message": message}
     return {"status": current_status, "message": status_list[current_status]}
+
 
 @app.get("/result")
 def getResult():
@@ -89,7 +110,8 @@ def getResult():
     if getStatus()["status"] == 3:
         return current_result
     else:
-        return { }
+        return {}
+
 
 if __name__ == "__main__":
     import uvicorn
