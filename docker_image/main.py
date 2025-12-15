@@ -53,12 +53,16 @@ def predict(data: Union[dict, List[dict]]):
     """
     global current_data, current_status, current_result
 
-    current_data = data
-    current_status = 1
-    model_obj = get_model()
-    current_status = 2
-    current_result = model_obj.predict(data)
-    current_status = 3
+    try:
+        current_data = data
+        current_status = 1
+        model_obj = get_model()
+        current_status = 2
+        current_result = model_obj.predict(data)
+        current_status = 3
+    except Exception as e:
+        current_status = 4
+        current_result = {"error": str(e)}
 
 
 @app.get("/status")
@@ -70,6 +74,8 @@ def getStatus():
     - status: the status of the model
     - message: a message indicating the status
     """
+    if current_status == 4:
+        return {"status": current_status, "message": current_result.get("error", "")}
     return {"status": current_status, "message": status_list[current_status]}
 
 @app.get("/result")
