@@ -2,7 +2,9 @@ FROM python:3.11-slim
 
 RUN apt update
 RUN apt upgrade -y
-RUN apt install -y git
+# RUN apt install -y git
+RUN apt-get update && apt-get install -y --no-install-recommends git
+
 
 # set a directory for the app
 WORKDIR /app
