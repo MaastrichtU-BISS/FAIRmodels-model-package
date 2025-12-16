@@ -72,7 +72,7 @@ def predict(data: Union[dict, List[dict]]):
     except (ValueError, TypeError) as e:
         # Validation errors -> client fault (400)
         current_status = 4
-        current_result = {"Error with input data. Check allowed range and format:": str(e)}
+        current_result = {"error": str(e)}
         # logging.info("Error with input data. Check allowed range and format: %s", e)
         # raise HTTPException(status_code=400, detail=str(e))
 
