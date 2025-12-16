@@ -1,7 +1,7 @@
 import os
 import logging
-from typing import List, Union
-from fastapi import FastAPI, HTTPException, Request
+from typing import List, Union, Any
+from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
@@ -15,9 +15,9 @@ status_list.insert(2, "Prediction in progress")
 status_list.insert(3, "Prediction completed")
 status_list.insert(4, "Prediction failed")
 
-current_data = None
+current_data: Any = None
 current_status = 0
-current_result = None
+current_result: Any = None
 
 
 def get_model():
@@ -37,15 +37,14 @@ def get_model():
     return instance
 
 
-# Global exception handlers so validation or other Value/Type errors
-# raised anywhere in the app will set the global status and return 400.
+# Keep handlers for validation errors that occur before the endpoint runs.
 @app.exception_handler(RequestValidationError)
 async def request_validation_exception_handler(request: Request, exc: RequestValidationError):
     global current_status, current_result
     logging.warning("Request validation error: %s", exc)
     current_status = 4
     current_result = {"error": str(exc)}
-    # Return 400 to indicate client error (you can keep 422 if you prefer)
+    # still return a 400 for the initial request; /status and /result reflect the error state
     return JSONResponse(status_code=400, content={"detail": exc.errors()})
 
 
@@ -84,61 +83,55 @@ def read_root():
 @app.post("/predict")
 def predict(data: Union[dict, List[dict]]):
     """
-    Calculate the probability for the current model.
-
-    Parameters:
-    - data: a dictionary (or list of dictionaries) containing the input data
+    Accept a prediction request, update global status/result, and return {}.
+    The caller must poll /status and /result to see outcome.
     """
     global current_data, current_status, current_result
 
     current_data = data
-    current_status = 1
+    current_status = 1  # request received
 
     try:
         model_obj = get_model()
-        current_status = 2
-
-        # model_obj.predict may raise ValueError/TypeError/KeyError which we want to convert
-        # to 400 responses and update global status/result.
-        try:
-            current_result = model_obj.predict(data)
-        except (ValueError, TypeError, KeyError) as e:
-            # Validation errors -> client fault (400)
-            logging.info("Validation error in model.predict: %s", e)
-            current_status = 4
-            current_result = {"error": str(e)}
-            # raise HTTPException so FastAPI returns a proper HTTP response and our handlers run
-            raise HTTPException(status_code=400, detail=str(e))
-        except Exception as e:
-            # Unexpected server error -> 500
-            logging.exception("Unhandled exception in model.predict")
-            current_status = 4
-            current_result = {"error": str(e)}
-            raise HTTPException(status_code=500, detail="Internal server error")
-
-        # success
-        current_status = 3
-        return current_result
-
-    except HTTPException:
-        # re-raise HTTP exceptions (they were already handled and status/result set)
-        raise
     except Exception as e:
-        # Anything else that slipped through
-        logging.exception("Unhandled exception in predict endpoint")
+        logging.exception("Failed to instantiate model")
         current_status = 4
         current_result = {"error": str(e)}
-        raise HTTPException(status_code=500, detail="Internal server error")
+        # Do not raise; return empty body. Status/result reflect the failure.
+        return {}
+
+    current_status = 2  # prediction in progress
+
+    try:
+        # Run prediction synchronously and store result or error in globals.
+        result = model_obj.predict(data)
+        current_result = result
+        current_status = 3  # completed
+        # Do not return the result here — clients are expected to fetch /result
+        return {}
+
+    except (ValueError, TypeError, KeyError) as e:
+        # Validation/client errors -> set failed state and store error message
+        logging.info("Validation error in model.predict: %s", e)
+        current_status = 4
+        current_result = {"error": str(e)}
+        return {}
+
+    except Exception as e:
+        # Unexpected server error -> set failed state and store error (traceback in logs)
+        logging.exception("Unhandled exception in model.predict")
+        current_status = 4
+        current_result = {"error": str(e)}
+        return {}
 
 
 @app.get("/status")
 def getStatus():
     """
-    Get the status of the current model.
-
+    Get the status of the current model run.
     Returns:
-    - status: the status of the model
-    - message: a message indicating the status
+    - status: numeric status code
+    - message: human-readable message or error
     """
     if current_status == 4:
         return {"status": current_status, "message": current_result.get("error", "")}
@@ -148,10 +141,7 @@ def getStatus():
 @app.get("/result")
 def getResult():
     """
-    Retrieve the probability for the current model.
-
-    Returns:
-    - probability: the probability which the model calculates
+    Retrieve the model output if ready.
     """
     if getStatus()["status"] == 3:
         return current_result
