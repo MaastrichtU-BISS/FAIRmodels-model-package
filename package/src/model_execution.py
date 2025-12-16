@@ -1,6 +1,58 @@
 
 import json
 from math import exp
+import importlib
+
+def load_model(module_name=None, class_name=None):
+    """
+    Get the model object based on the environment variables.
+
+    Args:
+        - module_name (str): The name of the module that contains the model class
+        - class_name (str): The name of the class that contains the model
+    Returns:
+        The model object
+    """
+
+    # import the module
+    module = importlib.import_module(module_name)
+    class_ = getattr(module, class_name)
+    instance = class_()
+    return instance
+
+def predict(prediction_file: str, class_name: str, input_data: str):
+    """
+    Predict using a python prediction model execution file, without building the docker image.
+
+    Args:
+        prediction_file (str): The python file that contains the prediction model execution code.
+            This file should contain a class that inherits from FairModel.model_execution.ModelExecution OR a json file that contains the model parameters
+        class_name (str): The name of the class that should inherit from FairModel.model_execution.ModelExecution
+        input_data (str): The input data in json formatted string
+
+    Returns:
+        The prediction result
+    """
+    input_data = json.loads(input_data)
+    model = None
+
+    if prediction_file.endswith('.json'):
+        with open(prediction_file) as f:
+            model_parameters = json.load(f)
+            if model_parameters['model_type'] == 'logistic_regression':
+                model = logistic_regression(model_parameters=model_parameters)
+    else:
+        module_name = prediction_file.replace('.py', '')
+        if class_name is None:
+            class_name = module_name
+
+        model = load_model(module_name, class_name)
+    
+    if model is None:
+        print("Model not found")
+        return
+    
+    print(json.dumps(model.predict(input_data), indent=4))
 
 class model_execution:
     def get_model_metadata(self):

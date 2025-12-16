@@ -89,23 +89,4 @@ def predict(prediction_file: str, class_name: str, input_data: str):
     Returns:
         The prediction result
     """
-    input_data = json.loads(input_data)
-    model = None
-
-    if prediction_file.endswith('.json'):
-        with open(prediction_file) as f:
-            model_parameters = json.load(f)
-            if model_parameters['model_type'] == 'logistic_regression':
-                model = model_execution.logistic_regression(model_parameters=model_parameters)
-    else:
-        module_name = prediction_file.replace('.py', '')
-        if class_name is None:
-            class_name = module_name
-
-        model = model_execution.load_model(module_name, class_name)
-    
-    if model is None:
-        print("Model not found")
-        return
-    
-    print(json.dumps(model.predict(input_data), indent=4))
+    return model_execution.predict(prediction_file, class_name, input_data)
