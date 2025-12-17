@@ -38,33 +38,6 @@ def get_model():
 
 
 # Keep handlers for validation errors that occur before the endpoint runs.
-@app.exception_handler(RequestValidationError)
-async def request_validation_exception_handler(request: Request, exc: RequestValidationError):
-    global current_status, current_result
-    logging.warning("Request validation error: %s", exc)
-    current_status = 4
-    current_result = {"error": str(exc)}
-    # still return a 400 for the initial request; /status and /result reflect the error state
-    return JSONResponse(status_code=400, content={"detail": exc.errors()})
-
-
-@app.exception_handler(ValueError)
-async def value_error_handler(request: Request, exc: ValueError):
-    global current_status, current_result
-    logging.warning("ValueError: %s", exc)
-    current_status = 4
-    current_result = {"error": str(exc)}
-    return JSONResponse(status_code=400, content={"detail": str(exc)})
-
-
-@app.exception_handler(TypeError)
-async def type_error_handler(request: Request, exc: TypeError):
-    global current_status, current_result
-    logging.warning("TypeError: %s", exc)
-    current_status = 4
-    current_result = {"error": str(exc)}
-    return JSONResponse(status_code=400, content={"detail": str(exc)})
-
 
 @app.get("/")
 def read_root():
@@ -82,6 +55,8 @@ def read_root():
 
 @app.post("/predict")
 def predict(data: Union[dict, List[dict]]):
+    global current_data, current_status, current_result
+
     """
     Accept a prediction request, update global status/result, and return {}.
     The caller must poll /status and /result to see outcome.
@@ -98,34 +73,49 @@ def predict(data: Union[dict, List[dict]]):
     current_status = 2  # prediction in progress
 
     try:
-        # Run prediction synchronously and store result or error in globals.
+        current_data = data
+        current_status = 1
+        print(f"\n[DEBUG-1] Input: {data}")
+
+        model_obj = get_model()
+        current_status = 2
+        print(f"[DEBUG-2] Model loaded")
+
+        print(f"[DEBUG-3] Calling predict...")
         result = model_obj.predict(data)
+
+        print(f"[DEBUG-4] Result: {result}")
+        print(f"[DEBUG-4] Type: {type(result)}\n")
+
         current_result = result
-        current_status = 3  # completed
-        # Do not return the result here — clients are expected to fetch /result
+        current_status = 3
         return {}
 
     except ValueError as ve:
+        print(f"\n[EXCEPTION] ValueError: {str(ve)}\n")
         current_status = 4
         current_result = {
             "error": f"Data Validation Error: {str(ve)}",
             "error_type": "ValueError",
-            "details": str(ve)}
+            "details": str(ve)
+        }
         return {}
 
     except TypeError as te:
+        print(f"\n[EXCEPTION] TypeError: {str(te)}\n")
         current_status = 4
         current_result = {
             "error": f"Type Error: {str(te)}",
             "error_type": "TypeError",
-            "details": str(te)        }
+            "details": str(te)
+        }
         return {}
 
     except Exception as e:
-        # Unexpected server error -> set failed state and store error (traceback in logs)
-        logging.exception("Unhandled exception in model.predict")
+        print(f"\n[EXCEPTION] {type(e).__name__}: {str(e)}\n")
         current_status = 4
         current_result = {"error": str(e)}
+        logging.exception("Unhandled exception")
         return {}
 
 
