@@ -86,11 +86,6 @@ def predict(data: Union[dict, List[dict]]):
     Accept a prediction request, update global status/result, and return {}.
     The caller must poll /status and /result to see outcome.
     """
-    global current_data, current_status, current_result
-
-    current_data = data
-    current_status = 1  # request received
-
     try:
         model_obj = get_model()
     except Exception as e:
@@ -110,11 +105,20 @@ def predict(data: Union[dict, List[dict]]):
         # Do not return the result here — clients are expected to fetch /result
         return {}
 
-    except (ValueError, TypeError, KeyError) as e:
-        # Validation/client errors -> set failed state and store error message
-        logging.info("Validation error in model.predict: %s", e)
+    except ValueError as ve:
         current_status = 4
-        current_result = {"error": str(e)}
+        current_result = {
+            "error": f"Data Validation Error: {str(ve)}",
+            "error_type": "ValueError",
+            "details": str(ve)}
+        return {}
+
+    except TypeError as te:
+        current_status = 4
+        current_result = {
+            "error": f"Type Error: {str(te)}",
+            "error_type": "TypeError",
+            "details": str(te)        }
         return {}
 
     except Exception as e:
