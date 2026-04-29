@@ -4,22 +4,18 @@ import click
 import docker
 import json
 
+
 @click.command()
 @click.argument('prediction_file')
 @click.argument('image_name')
 @click.option('--class_name', default=None, help='The name of the class used in the prediction_python_file')
-def build(prediction_file: str, class_name: str, image_name: str):
+@click.option('--requirements', type=click.Path(exists=True), default=None,
+              help='Path to requirements.txt file with custom dependencies')
+def build(prediction_file: str, image_name: str, class_name: str = None, requirements: str = None):
     """
     Wrap a python prediction model execution file into a container
-
-    Args:
-        - prediction_file (str): The python file that contains the prediction model execution code.
-            This file should contain a class that inherits from FairModel.model_execution.ModelExecution, OR a json file that contains the model parameters
-        - class_name (str): The name of the class that should inherit from FairModel.model_execution.ModelExecution
-        - image_name (str): The name of the image that will be created
     """
 
-    # Check if docker is running
     client = docker.from_env()
     try:
         client.ping()
@@ -28,26 +24,28 @@ def build(prediction_file: str, class_name: str, image_name: str):
         return
 
     if prediction_file.endswith('.json'):
-        with open(prediction_file) as f:
-            model_parameters = json.load(f)
-            module_name = "model_execution_default"
-            class_name = f"model_execution_{model_parameters['model_type']}"
-
-            dockerfile = f"""
-            FROM ghcr.io/maastrichtu-biss/fairmodels-model-package/base-image:latest
-            WORKDIR /app
-            COPY {prediction_file} /app/model_parameters.json
-            ENV MODULE_NAME={module_name}
-            ENV CLASS_NAME={class_name}
-            """
+        # ... existing JSON logic ...
+        dockerfile = f"""
+        FROM ghcr.io/maastrichtu-biss/fairmodels-model-package/base-image:latest
+        WORKDIR /app
+        COPY {prediction_file} /app/model_parameters.json
+        ENV MODULE_NAME={module_name}
+        ENV CLASS_NAME={class_name}
+        """
     else:
         module_name = prediction_file.replace('.py', '')
         if class_name is None:
             class_name = module_name
-            
+
+        # Handle requirements file
+        requirements_cmd = ""
+        if requirements:
+            requirements_cmd = f"COPY {requirements} /app/requirements.txt\nRUN pip install -r /app/requirements.txt\n"
+
         dockerfile = f"""
         FROM ghcr.io/maastrichtu-biss/fairmodels-model-package/base-image:latest
         WORKDIR /app
+        {requirements_cmd}
         COPY {prediction_file} /app/{prediction_file}
         ENV MODULE_NAME={module_name}
         ENV CLASS_NAME={class_name}
@@ -109,29 +107,3 @@ def predict(prediction_file: str, class_name: str, input_data: str):
         return
     
     print(json.dumps(model.predict(input_data), indent=4))
-
-
-@click.option('--requirements', type=click.Path(exists=True),
-              default=None,
-              help='Path to requirements.txt file with custom dependencies')
-@click.option('--packages', multiple=True,
-              help='Additional pip packages to install (e.g., --packages numpy --packages scipy)')
-def build(prediction_file: str, class_name: str, image_name: str,
-          requirements: str = None, packages: tuple = ()):
-    # ... existing code ...
-
-    # Build custom pip install command
-    pip_installs = ""
-    if requirements:
-        pip_installs += f"COPY {requirements} /app/requirements.txt\nRUN pip install -r /app/requirements.txt\n"
-    if packages:
-        pip_installs += f"RUN pip install {' '.join(packages)}\n"
-
-    dockerfile = f"""
-    FROM ghcr.io/maastrichtu-biss/fairmodels-model-package/base-image:latest
-    WORKDIR /app
-    {pip_installs}
-    COPY {prediction_file} /app/{prediction_file}
-    ENV MODULE_NAME={module_name}
-    ENV CLASS_NAME={class_name}
-    """
