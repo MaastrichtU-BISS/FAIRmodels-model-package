@@ -112,6 +112,18 @@ class deep_thought(model_execution):
         """
         return ["question"]
 ```
+## 2.3 Specifying Model Dependencies
+
+If your model requires additional Python packages, you have two options:
+
+**Option A: Using a requirements.txt file**
+```bash
+fm-build model.py --class_name MyModel --requirements requirements.txt myimage/mymodel
+```
+**Option B: Inline package installation**
+```bash
+fm-build model.py --class_name MyModel --packages numpy scipy myimage/mymodel
+```
 
 ## 3. Build the container
 

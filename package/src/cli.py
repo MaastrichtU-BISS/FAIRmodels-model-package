@@ -109,3 +109,29 @@ def predict(prediction_file: str, class_name: str, input_data: str):
         return
     
     print(json.dumps(model.predict(input_data), indent=4))
+
+
+@click.option('--requirements', type=click.Path(exists=True),
+              default=None,
+              help='Path to requirements.txt file with custom dependencies')
+@click.option('--packages', multiple=True,
+              help='Additional pip packages to install (e.g., --packages numpy --packages scipy)')
+def build(prediction_file: str, class_name: str, image_name: str,
+          requirements: str = None, packages: tuple = ()):
+    # ... existing code ...
+
+    # Build custom pip install command
+    pip_installs = ""
+    if requirements:
+        pip_installs += f"COPY {requirements} /app/requirements.txt\nRUN pip install -r /app/requirements.txt\n"
+    if packages:
+        pip_installs += f"RUN pip install {' '.join(packages)}\n"
+
+    dockerfile = f"""
+    FROM ghcr.io/maastrichtu-biss/fairmodels-model-package/base-image:latest
+    WORKDIR /app
+    {pip_installs}
+    COPY {prediction_file} /app/{prediction_file}
+    ENV MODULE_NAME={module_name}
+    ENV CLASS_NAME={class_name}
+    """
