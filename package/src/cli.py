@@ -3,6 +3,7 @@ import os
 import click
 import docker
 import json
+from pathlib import Path
 
 
 @click.command()
@@ -11,7 +12,12 @@ import json
 @click.option('--class_name', default=None, help='The name of the class used in the prediction_python_file')
 @click.option('--requirements', type=click.Path(exists=True), default=None,
               help='Path to requirements.txt file with custom dependencies')
-def build(prediction_file: str, image_name: str, class_name: str = None, requirements: str = None):
+@click.option('--dockerfile', type=click.Path(exists=True), default=None,
+              help='Optional custom Dockerfile path. If omitted, fm-build generates a default Dockerfile.')
+@click.option('--context', type=click.Path(exists=True), default=None,
+              help='Docker build context path (default: current directory).')
+def build(prediction_file: str, image_name: str, class_name: str = None, requirements: str = None, 
+          dockerfile: str = None, context: str = None):
     """
     Wrap a python prediction model execution file into a container
     """
@@ -23,13 +29,19 @@ def build(prediction_file: str, image_name: str, class_name: str = None, require
         print("Docker is not running. Please start Docker.")
         return
 
+    # If custom dockerfile is provided, use it directly
+    if dockerfile:
+        build_with_custom_dockerfile(dockerfile, image_name, context or os.path.abspath(os.path.curdir))
+        return
+
+    # Otherwise, generate default dockerfile
     if prediction_file.endswith('.json'):
         # ... existing JSON logic ...
-        dockerfile = f"""
+        dockerfile_content = f"""
         FROM ghcr.io/maastrichtu-biss/fairmodels-model-package/base-image:latest
         WORKDIR /app
         COPY {prediction_file} /app/model_parameters.json
-        ENV MODULE_NAME={module_name}
+        ENV MODULE_NAME={model_name}
         ENV CLASS_NAME={class_name}
         """
     else:
@@ -42,7 +54,7 @@ def build(prediction_file: str, image_name: str, class_name: str = None, require
         if requirements:
             requirements_cmd = f"COPY {requirements} /app/requirements.txt\nRUN pip install -r /app/requirements.txt\n"
 
-        dockerfile = f"""
+        dockerfile_content = f"""
         FROM ghcr.io/maastrichtu-biss/fairmodels-model-package/base-image:latest
         WORKDIR /app
         {requirements_cmd}
@@ -51,7 +63,7 @@ def build(prediction_file: str, image_name: str, class_name: str = None, require
         ENV CLASS_NAME={class_name}
         """
 
-    image = build_container(dockerfile, image_name)
+    image = build_container(dockerfile_content, image_name)
 
 def build_container(dockerfile, image_name, show_logs=False):    
     # write Dockerfile
@@ -64,6 +76,41 @@ def build_container(dockerfile, image_name, show_logs=False):
     
     # delete Dockerfile
     os.remove('Dockerfile')
+    if show_logs:
+        for line in build_log:
+            if 'stream' in line:
+                print(line['stream'])
+    return image
+
+def build_with_custom_dockerfile(dockerfile_path: str, image_name: str, context: str, show_logs=False):
+    """
+    Build docker image using a custom Dockerfile.
+    
+    Args:
+        dockerfile_path: Path to the custom Dockerfile
+        image_name: Docker image tag
+        context: Docker build context path
+        show_logs: Whether to show build logs
+    """
+    client = docker.from_env()
+    context_abs = os.path.abspath(context)
+    dockerfile_abs = os.path.abspath(dockerfile_path)
+    
+    # Validate paths
+    if not os.path.exists(context_abs):
+        raise FileNotFoundError(f"Build context does not exist: {context_abs}")
+    if not os.path.exists(dockerfile_abs):
+        raise FileNotFoundError(f"Dockerfile not found: {dockerfile_abs}")
+    
+    # build image using custom dockerfile
+    image, build_log = client.images.build(
+        path=context_abs,
+        dockerfile=dockerfile_abs,
+        rm=True,
+        tag=image_name,
+        nocache=True
+    )
+    
     if show_logs:
         for line in build_log:
             if 'stream' in line:
