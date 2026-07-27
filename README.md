@@ -2,7 +2,7 @@
 
 This package is intended as a base for all models available on FAIRmodels.org.
 As a model developer, models need to be encapsulated into Docker containers. The instructions below will help with convenience scripts.
-To build your own container from scratch, a REST API is required according to the specification given in [docker_image/api-specification.yaml](docker_image/api-specification.yaml). However, for 80% of the models, it is easier to perform the steps below.
+To build your own container from scratch, a REST API is required according to the specification given in [docker_image/api-specification.yaml](docker_image/api-specification.yaml). However, for 80%[...]
 
 ## 1. Install the package
 
@@ -45,7 +45,7 @@ The following information properties are defined in this JSON specification:
 
 ### 2.2 Using a python function/script
 
-If the above option is too limited, you can use the python function/script option to make your own (custom) model. This model class should inherit from [package/src/model_execution.py](model_execution.py). The same prediction model is shown below as a python function/script:
+If the above option is too limited, you can use the python function/script option to make your own (custom) model. This model class should inherit from [package/src/model_execution.py](model_execu[...]
 
 ```python
 from math import log, exp
@@ -125,6 +125,24 @@ fm-build model.py --class_name MyModel --requirements requirements.txt myimage/m
 fm-build model.py --class_name MyModel --packages numpy scipy myimage/mymodel
 ```
 
+### 2.4 Using a Custom Dockerfile
+
+For advanced use cases, you can provide your own custom Dockerfile instead of auto-generation:
+
+```bash
+fm-build model.py --class_name MyModel --requirements requirements.txt --dockerfile docker_image/Dockerfile --context . myimage/mymodel
+```
+
+Options:
+- `--dockerfile`: Path to your custom Dockerfile (optional; if omitted, fm-build generates a default Dockerfile)
+- `--context`: Docker build context path (default: current directory)
+
+This is useful when you need:
+- Custom base images
+- Additional system packages or setup
+- Complex multi-stage builds
+- Environment-specific configurations
+
 ## 3. Build the container
 
 To build the container, you can use the command-line convenience scripts. This command-line script works with both the JSON specification and python function/script.
@@ -135,7 +153,7 @@ To build/package using the JSON specification:
 fm-build stiphout_pcr_clinical.json jvsoest/stiphout_pcr_clinical
 ```
 
-In this example, the first argument (`stiphout_pcr_clinical.json`) refers to the JSON file. The second argument (`jvsoest/stiphout_pcr_clinical`) refers to the Docker image name which will be built.
+In this example, the first argument (`stiphout_pcr_clinical.json`) refers to the JSON file. The second argument (`jvsoest/stiphout_pcr_clinical`) refers to the Docker image name which will be bui[...]
 
 To build/package using the python function/script:
 ```
