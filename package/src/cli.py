@@ -41,7 +41,7 @@ def build(prediction_file: str, image_name: str, class_name: str = None, require
         FROM ghcr.io/maastrichtu-biss/fairmodels-model-package/base-image:latest
         WORKDIR /app
         COPY {prediction_file} /app/model_parameters.json
-        ENV MODULE_NAME={model_name}
+        ENV MODULE_NAME={module_name}
         ENV CLASS_NAME={class_name}
         """
     else:
@@ -102,10 +102,13 @@ def build_with_custom_dockerfile(dockerfile_path: str, image_name: str, context:
     if not os.path.exists(dockerfile_abs):
         raise FileNotFoundError(f"Dockerfile not found: {dockerfile_abs}")
     
+    # Get relative path from context to dockerfile
+    dockerfile_rel = os.path.relpath(dockerfile_abs, context_abs)
+    
     # build image using custom dockerfile
     image, build_log = client.images.build(
         path=context_abs,
-        dockerfile=dockerfile_abs,
+        dockerfile=dockerfile_rel,
         rm=True,
         tag=image_name,
         nocache=True
