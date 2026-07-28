@@ -31,7 +31,7 @@ def build(prediction_file: str, image_name: str, class_name: str = None, require
 
     # If custom dockerfile is provided, use it directly
     if dockerfile:
-        build_with_custom_dockerfile(dockerfile, image_name, context or os.path.abspath(os.path.curdir))
+        build_with_custom_dockerfile(dockerfile, image_name, context or os.path.abspath(os.path.curdir), show_logs=True)
         return
 
     # Otherwise, generate default dockerfile
@@ -63,7 +63,7 @@ def build(prediction_file: str, image_name: str, class_name: str = None, require
         ENV CLASS_NAME={class_name}
         """
 
-    image = build_container(dockerfile_content, image_name)
+    image = build_container(dockerfile_content, image_name, show_logs=True)
 
 def build_container(dockerfile, image_name, show_logs=False):    
     # write Dockerfile
@@ -118,6 +118,8 @@ def build_with_custom_dockerfile(dockerfile_path: str, image_name: str, context:
         for line in build_log:
             if 'stream' in line:
                 print(line['stream'])
+            if 'error' in line:
+                print(f"ERROR: {line['error']}")
     return image
 
 @click.command()
