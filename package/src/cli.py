@@ -106,21 +106,33 @@ def build_with_custom_dockerfile(dockerfile_path: str, image_name: str, context:
     dockerfile_rel = os.path.relpath(dockerfile_abs, context_abs)
     
     # build image using custom dockerfile
-    image, build_log = client.images.build(
-        path=context_abs,
-        dockerfile=dockerfile_rel,
-        rm=True,
-        tag=image_name,
-        nocache=True
-    )
-    
-    if show_logs:
-        for line in build_log:
-            if 'stream' in line:
-                print(line['stream'])
-            if 'error' in line:
-                print(f"ERROR: {line['error']}")
-    return image
+    try:
+        image, build_log = client.images.build(
+            path=context_abs,
+            dockerfile=dockerfile_rel,
+            rm=True,
+            tag=image_name,
+            nocache=True
+        )
+        
+        if show_logs:
+            for line in build_log:
+                if 'stream' in line:
+                    print(line['stream'])
+                if 'error' in line:
+                    print(f"ERROR: {line['error']}")
+        return image
+    except docker.errors.BuildError as e:
+        print(f"\n=== Docker Build Failed ===")
+        print(f"Error: {str(e)}")
+        if hasattr(e, 'build_log'):
+            print("\n=== Build Log ===")
+            for line in e.build_log:
+                if 'stream' in line:
+                    print(line['stream'], end='')
+                if 'error' in line:
+                    print(f"ERROR: {line['error']}")
+        raise
 
 @click.command()
 @click.argument('prediction_file')
