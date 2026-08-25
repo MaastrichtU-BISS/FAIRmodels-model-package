@@ -29,6 +29,11 @@ def build(prediction_file: str, image_name: str, class_name: str = None, require
         print("Docker is not running. Please start Docker.")
         return
 
+    # If custom dockerfile is provided, use it directly
+    if dockerfile:
+        build_with_custom_dockerfile(dockerfile, image_name, context or os.path.abspath(os.path.curdir), show_logs=True)
+        return
+
     # Otherwise, generate default dockerfile
     if prediction_file.endswith('.json'):
         with open(prediction_file) as f:
@@ -36,7 +41,7 @@ def build(prediction_file: str, image_name: str, class_name: str = None, require
             module_name = "model_execution_default"
             class_name = f"model_execution_{model_parameters['model_type']}"
 
-            dockerfile = f"""
+            dockerfile_content = f"""
             FROM ghcr.io/maastrichtu-biss/fairmodels-model-package/base-image:latest
             WORKDIR /app
             COPY {prediction_file} /app/model_parameters.json
@@ -67,7 +72,7 @@ def build(prediction_file: str, image_name: str, class_name: str = None, require
         ENV CLASS_NAME={class_name}
         """
 
-    image = build_container(dockerfile_content, image_name)
+    image = build_container(dockerfile_content, image_name, show_logs=True)
 
 def build_container(dockerfile, image_name, show_logs=False):    
     # write Dockerfile
@@ -106,20 +111,37 @@ def build_with_custom_dockerfile(dockerfile_path: str, image_name: str, context:
     if not os.path.exists(dockerfile_abs):
         raise FileNotFoundError(f"Dockerfile not found: {dockerfile_abs}")
     
-    # build image using custom dockerfile
-    image, build_log = client.images.build(
-        path=context_abs,
-        dockerfile=dockerfile_abs,
-        rm=True,
-        tag=image_name,
-        nocache=True
-    )
+    # Get relative path from context to dockerfile
+    dockerfile_rel = os.path.relpath(dockerfile_abs, context_abs)
     
-    if show_logs:
-        for line in build_log:
-            if 'stream' in line:
-                print(line['stream'])
-    return image
+    # build image using custom dockerfile
+    try:
+        image, build_log = client.images.build(
+            path=context_abs,
+            dockerfile=dockerfile_rel,
+            rm=True,
+            tag=image_name,
+            nocache=True
+        )
+        
+        if show_logs:
+            for line in build_log:
+                if 'stream' in line:
+                    print(line['stream'])
+                if 'error' in line:
+                    print(f"ERROR: {line['error']}")
+        return image
+    except docker.errors.BuildError as e:
+        print(f"\n=== Docker Build Failed ===")
+        print(f"Error: {str(e)}")
+        if hasattr(e, 'build_log'):
+            print("\n=== Build Log ===")
+            for line in e.build_log:
+                if 'stream' in line:
+                    print(line['stream'], end='')
+                if 'error' in line:
+                    print(f"ERROR: {line['error']}")
+        raise
 
 @click.command()
 @click.argument('prediction_file')
