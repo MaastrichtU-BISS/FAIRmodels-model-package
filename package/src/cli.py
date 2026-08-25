@@ -29,25 +29,29 @@ def build(prediction_file: str, image_name: str, class_name: str = None, require
         print("Docker is not running. Please start Docker.")
         return
 
-    # If custom dockerfile is provided, use it directly
-    if dockerfile:
-        build_with_custom_dockerfile(dockerfile, image_name, context or os.path.abspath(os.path.curdir))
-        return
-
     # Otherwise, generate default dockerfile
     if prediction_file.endswith('.json'):
-        # ... existing JSON logic ...
-        dockerfile_content = f"""
-        FROM ghcr.io/maastrichtu-biss/fairmodels-model-package/base-image:latest
-        WORKDIR /app
-        COPY {prediction_file} /app/model_parameters.json
-        ENV MODULE_NAME={model_name}
-        ENV CLASS_NAME={class_name}
-        """
+        with open(prediction_file) as f:
+            model_parameters = json.load(f)
+            module_name = "model_execution_default"
+            class_name = f"model_execution_{model_parameters['model_type']}"
+
+            dockerfile = f"""
+            FROM ghcr.io/maastrichtu-biss/fairmodels-model-package/base-image:latest
+            WORKDIR /app
+            COPY {prediction_file} /app/model_parameters.json
+            ENV MODULE_NAME={module_name}
+            ENV CLASS_NAME={class_name}
+            """
     else:
         module_name = prediction_file.replace('.py', '')
         if class_name is None:
             class_name = module_name
+
+        # If custom dockerfile is provided, use it directly
+        if dockerfile:
+            build_with_custom_dockerfile(dockerfile, image_name, context or os.path.abspath(os.path.curdir))
+            return
 
         # Handle requirements file
         requirements_cmd = ""
